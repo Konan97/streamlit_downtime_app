@@ -19,6 +19,8 @@ session = get_active_session()
 # conveyer(PC) process(PP) application(PA) material(PM)
 # PC1432, NVH, PA1343 no connections, PM1261 waiting for upgrade,
 # PP1361
+color_areas = ['1593003OP003_1', '1593002OP002_1']
+non_color_areas = ['1191005OP005_1', '1245002OP002_1', '1245009OP009_1', '1392003OP003_1']
 dic_plcs_to_sections = {
     '1593003OP003_1':'WD20 South',
     '1593002OP002_1':'WD20 North',
@@ -38,9 +40,7 @@ dic_sections_to_plcs = {
     'WD1 Fixture Mounting': '1191005OP005_1',
     'WD6 UBS Fixtures/BIW':'1245002OP002_1',
 }
-# 5195 station 1
-# 5225 station 6
-# 5230 station SIP
+
 RB_to_station = {
     '5145': '1', '5150': '2', '5155': '3', '5165': '4', '5170': '5', '5175': '6', '5180': 'SIP',
     '5195': '1', '5200': '2', '5205': '3', '5210': '4', '5215': '5', '5225': '6', '5230': 'SIP',
@@ -525,24 +525,6 @@ def dict_to_df(input_dict):
         
     return output
 
-# convert plc_origin to workstation 
-def plc_to_workstation(df_reconstructed):
-    downtime_station = defaultdict(int)
-    workdeck = set()
-    for i in range(len(df_reconstructed)):
-        direction = "" # L or R
-         # check left or right
-        if df_reconstructed['Comment'][i] == "Quality stop active right":
-            direction = 'R'
-        else:
-            direction = 'L'
-        s = df_reconstructed['PLC_Instance'][i]
-        station_name = RB_to_station[s[len(s)-4:len(s)]]+direction
-        workdeck.add(station_name)
-        date = df_reconstructed['Alarm Start'][i].date()
-        downtime_station[(date, station_name)] += df_reconstructed['Downtime'][i]/60
-    return downtime_station
-
 ## function to give over view performance of the shop
 ### APP ###
 
@@ -705,7 +687,21 @@ if st.session_state['initial_filters_applied'] and len(date_input) == 2 and st.s
                     df_reconstructed = df_reconstructed[df_reconstructed['Downtime'] > 0].reset_index(drop=True)
                 
                 
-                downtime_station = plc_to_workstation(df_reconstructed)
+                downtime_station = defaultdict(int)
+                workdeck = set()
+                
+                for i in range(len(df_reconstructed)):
+                    direction = "" # L or R
+                     # check left or right
+                    if df_reconstructed['Comment'][i] == "Quality stop active right":
+                        direction = 'R'
+                    else:
+                        direction = 'L'
+                    s = df_reconstructed['PLC_Instance'][i]
+                    station_name = RB_to_station[s[len(s)-4:len(s)]]+direction
+                    workdeck.add(station_name)
+                    date = df_reconstructed['Alarm Start'][i].date()
+                    downtime_station[(date, station_name)] += df_reconstructed['Downtime'][i]/60
                     
                         
                 # most downtime station
